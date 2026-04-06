@@ -1,0 +1,241 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { Card, Input, Select, Textarea, FormRow, Button, PageHeader, Divider } from "@/components/ui";
+import Link from "next/link";
+
+interface Cliente { id: string; nombre: string; cuit?: string; email?: string; direccion?: string; ciudad?: string; provincia?: string; }
+interface Producto { id: string; nombre: string; precio_venta: number; }
+interface Item { producto_id: string; descripcion: string; cantidad: number; precio_unitario: number; }
+
+function pesos(n: number) {
+  return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
+}
+
+export default function NuevoPresupuestoPage() {
+  const router = useRouter();
+  const supabase = createClient();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
+
+  const [clienteId, setClienteId] = useState("");
+  const [descuento, setDescuento] = useState(0);
+  const [iva, setIva] = useState(21);
+  const [validez, setValidez] = useState(15);
+  const [notas, setNotas] = useState("");
+  const [items, setItems] = useState<Item[]>([
+    { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0 },
+  ]);
+
+  useEffect(() => {
+    supabase.from("clientes").select("id, nombre, cuit, email, direccion, ciudad, provincia").order("nombre")
+      .then(({ data }) => setClientes(data ?? []));
+    supabase.from("productos").select("id, nombre, precio_venta").eq("activo", true).order("nombre")
+      .then(({ data }) => setProductos(data ?? []));
+  }, []);
+
+  function addItem() {
+    setItems((prev) => [...prev, { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0 }]);
+  }
+
+  function removeItem(i: number) {
+    setItems((prev) => prev.filter((_, idx) => idx !== i));
+  }
+
+  function setItem(i: number, field: keyof Item, value: string | number) {
+    setItems((prev) => prev.map((item, idx) => {
+      if (idx !== i) return item;
+      if (field === "producto_id" && typeof value === "string") {
+        const prod = productos.find((p) => p.id === value);
+        return { ...item, producto_id: value, descripcion: prod?.nombre ?? "", precio_unitario: prod?.precio_venta ?? 0 };
+      }
+      return { ...item, [field]: value };
+    }));
+  }
+
+  const subtotal = items.reduce((s, it) => s + it.cantidad * it.precio_unitario, 0);
+  const descuentoMonto = subtotal * (descuento / 100);
+  const baseIva = subtotal - descuentoMonto;
+  const ivaMonto = baseIva * (iva / 100);
+  const total = baseIva + ivaMonto;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!clienteId) { setError("Seleccioná un cliente."); return; }
+    if (items.every((it) => !it.descripcion)) { setError("Agregá al menos un ítem."); return; }
+    setLoading(true); setError("");
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { data: presup, error: presupError } = await supabase
+      .from("presupuestos")
+      .insert({ cliente_id: clienteId, estado: "borrador", subtotal, descuento, iva, total, notas: notas || null, validez_dias: validez, created_by: user!.id })
+      .select().single();
+
+    if (presupError || !presup) { setError("Error al guardar."); setLoading(false); return; }
+
+    const itemsToInsert = items
+      .filter((it) => it.descripcion.trim())
+      .map((it) => ({
+        presupuesto_id: presup.id,
+        producto_id: it.producto_id || null,
+        descripcion: it.descripcion,
+        cantidad: it.cantidad,
+        precio_unitario: it.precio_unitario,
+        subtotal: it.cantidad * it.precio_unitario,
+      }));
+
+    if (itemsToInsert.length > 0) {
+      await supabase.from("presupuesto_items").insert(itemsToInsert);
+    }
+
+    router.push(`/presupuestos/${presup.id}`);
+    router.refresh();
+  }
+
+  return (
+    <div className="page-container" style={{ maxWidth: "820px" }}>
+      <PageHeader
+        title="Nuevo presupuesto"
+        action={<Link href="/presupuestos" style={{ fontSize: "13px", color: "var(--text-2)", textDecoration: "none" }}>← Volver</Link>}
+      />
+
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+
+        {/* Cliente */}
+        <Card style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>Cliente</div>
+          <FormRow>
+            <Select label="Seleccioná el cliente *" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
+              <option value="">— Elegí un cliente —</option>
+              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </Select>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <Input label="Validez (días)" type="number" value={String(validez)} onChange={(e) => setValidez(Number(e.target.value))} />
+              <Link href="/clientes/nuevo" style={{ alignSelf: "flex-end", fontSize: "12px", color: "var(--brand)", textDecoration: "none", whiteSpace: "nowrap", paddingBottom: "10px" }}>
+                + Nuevo cliente
+              </Link>
+            </div>
+          </FormRow>
+          {clienteId && (() => {
+            const c = clientes.find((cl) => cl.id === clienteId);
+            if (!c) return null;
+            return (
+              <div style={{ background: "var(--surface-2)", borderRadius: "var(--radius)", padding: "10px 12px", fontSize: "12px", color: "var(--text-2)", display: "flex", gap: "16px", flexWrap: "wrap" }}>
+                {c.cuit && <span>DNI: <strong>{c.cuit}</strong></span>}
+                {c.email && <span>Email: <strong>{c.email}</strong></span>}
+                {c.ciudad && <span>Ciudad: <strong>{[c.ciudad, c.provincia].filter(Boolean).join(", ")}</strong></span>}
+              </div>
+            );
+          })()}
+        </Card>
+
+        {/* Items */}
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>Productos / servicios</div>
+            <Button type="button" variant="secondary" size="sm" onClick={addItem}>+ Agregar ítem</Button>
+          </div>
+
+          {/* Header */}
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 80px 28px", gap: "10px", marginBottom: "8px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
+            {["Descripción", "Cant.", "Precio unit.", "Subtotal", ""].map((h) => (
+              <div key={h} style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</div>
+            ))}
+          </div>
+
+          {items.map((item, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 80px 28px", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
+              {/* Descripción con selector de producto */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <select
+                  value={item.producto_id}
+                  onChange={(e) => setItem(i, "producto_id", e.target.value)}
+                  style={{ padding: "4px 8px", fontSize: "11px", border: "1px solid var(--border)", borderRadius: "6px", background: "var(--surface)", color: "var(--text-2)", fontFamily: "var(--font-main)" }}
+                >
+                  <option value="">Seleccioná producto (opcional)</option>
+                  {productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                </select>
+                <input
+                  value={item.descripcion}
+                  onChange={(e) => setItem(i, "descripcion", e.target.value)}
+                  placeholder="Descripción del ítem"
+                  style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none" }}
+                  onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
+                  onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+                />
+              </div>
+              <input type="number" min="1" value={item.cantidad}
+                onChange={(e) => setItem(i, "cantidad", Number(e.target.value))}
+                style={{ padding: "9px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none", width: "100%" }}
+                onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
+                onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+              />
+              <input type="number" min="0" value={item.precio_unitario}
+                onChange={(e) => setItem(i, "precio_unitario", Number(e.target.value))}
+                style={{ padding: "9px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none", width: "100%" }}
+                onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
+                onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+              />
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", textAlign: "right" }}>
+                {pesos(item.cantidad * item.precio_unitario)}
+              </div>
+              <button type="button" onClick={() => removeItem(i)}
+                style={{ width: "28px", height: "28px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", cursor: items.length === 1 ? "not-allowed" : "pointer", color: "var(--text-3)", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", opacity: items.length === 1 ? 0.3 : 1 }}
+                disabled={items.length === 1}
+                onMouseEnter={(e) => { if (items.length > 1) { (e.currentTarget.style.background = "#fef2f2"); (e.currentTarget.style.color = "var(--danger)"); } }}
+                onMouseLeave={(e) => { (e.currentTarget.style.background = "transparent"); (e.currentTarget.style.color = "var(--text-3)"); }}
+              >×</button>
+            </div>
+          ))}
+        </Card>
+
+        {/* Totales + config */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <Card style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>Configuración</div>
+            <FormRow>
+              <Input label="Descuento (%)" type="number" min="0" max="100" value={String(descuento)} onChange={(e) => setDescuento(Number(e.target.value))} />
+              <Input label="IVA (%)" type="number" min="0" value={String(iva)} onChange={(e) => setIva(Number(e.target.value))} />
+            </FormRow>
+            <Textarea label="Notas / condiciones" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Condiciones de pago, entrega, etc." />
+          </Card>
+
+          <Card>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", marginBottom: "16px" }}>Resumen</div>
+            {[
+              { label: "Subtotal", value: pesos(subtotal) },
+              { label: `Descuento (${descuento}%)`, value: descuento > 0 ? `- ${pesos(descuentoMonto)}` : "—" },
+              { label: `IVA (${iva}%)`, value: pesos(ivaMonto) },
+            ].map((r) => (
+              <div key={r.label} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", color: "var(--text-2)", marginBottom: "10px" }}>
+                <span>{r.label}</span>
+                <span>{r.value}</span>
+              </div>
+            ))}
+            <Divider />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: "12px" }}>
+              <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>Total</span>
+              <span style={{ fontSize: "24px", fontWeight: 700, color: "var(--brand)", letterSpacing: "-0.02em" }}>{pesos(total)}</span>
+            </div>
+          </Card>
+        </div>
+
+        {error && (
+          <div style={{ background: "var(--danger-bg)", border: "1px solid #fecaca", borderRadius: "var(--radius)", padding: "10px 12px", fontSize: "13px", color: "var(--danger)" }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+          <Link href="/presupuestos"><Button variant="secondary" type="button">Cancelar</Button></Link>
+          <Button variant="primary" type="submit" loading={loading}>Guardar presupuesto</Button>
+        </div>
+      </form>
+    </div>
+  );
+}
