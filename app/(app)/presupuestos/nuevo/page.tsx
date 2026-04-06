@@ -16,7 +16,7 @@ function pesos(n: number) {
 
 export default function NuevoPresupuestoPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -90,7 +90,7 @@ export default function NuevoPresupuestoPage() {
       }));
 
     if (itemsToInsert.length > 0) {
-      await supabase.from("presupuesto_items").insert(itemsToInsert);
+      await (supabase as any).from("presupuesto_items").insert(itemsToInsert);
     }
 
     router.push(`/presupuestos/${presup.id}`);

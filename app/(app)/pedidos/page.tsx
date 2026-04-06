@@ -14,7 +14,7 @@ const COLUMNAS = [
 ];
 
 export default async function PedidosPage() {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
   const { data: pedidos } = await supabase
     .from("pedidos").select("*, clientes(nombre)").order("created_at", { ascending: false });
 

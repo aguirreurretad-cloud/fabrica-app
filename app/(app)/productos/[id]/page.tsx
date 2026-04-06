@@ -12,7 +12,7 @@ function pesos(n: number) {
 }
 
 export default async function ProductoDetallePage({ params }: { params: { id: string } }) {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
 
   const { data: producto } = await supabase
     .from("productos")

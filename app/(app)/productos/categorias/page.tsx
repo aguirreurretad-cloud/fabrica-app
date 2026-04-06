@@ -8,7 +8,7 @@ import Link from "next/link";
 interface Categoria { id: string; nombre: string; descripcion: string | null; count?: number; }
 
 export default function CategoriasPage() {
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
 

@@ -17,7 +17,7 @@ const ESTADO_BADGE: Record<string, "info" | "warning" | "success" | "gray"> = {
 };
 
 export default async function FabricacionPage() {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
 
   const [{ data: producciones }, { data: recetas }] = await Promise.all([
     supabase.from("producciones")

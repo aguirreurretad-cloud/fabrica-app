@@ -11,7 +11,7 @@ const CATEGORIAS_EGRESO  = ["Telas / materiales", "Sueldos", "Alquiler", "Servic
 
 export default function NuevoMovimientoPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

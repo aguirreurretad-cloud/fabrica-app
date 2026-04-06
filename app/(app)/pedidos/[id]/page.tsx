@@ -25,7 +25,7 @@ const ESTADO_BADGE: Record<string, "gray" | "info" | "warning" | "success"> = {
 export default function PedidoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [pedido, setPedido] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cambiando, setCambiando] = useState(false);

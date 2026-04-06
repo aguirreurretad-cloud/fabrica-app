@@ -9,7 +9,7 @@ import Link from "next/link";
 export default function EditarClientePage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const supabase = createClient();
+  const supabase = createClient() as any;
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);

@@ -11,7 +11,7 @@ function pesos(n: number) {
 }
 
 export default async function ProductosPage() {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
   const { data: productos } = await supabase
     .from("productos")
     .select("*, categorias(nombre), producto_variantes(stock)")

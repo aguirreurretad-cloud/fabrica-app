@@ -32,7 +32,7 @@ function esDesactualizado(last_checked_at: string | null): boolean {
 }
 
 export default function CorreoPage() {
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [envios, setEnvios] = useState<EnvioSeguimiento[]>([]);
   const [loadingEnvios, setLoadingEnvios] = useState(true);
   const [actualizando, setActualizando] = useState(false);

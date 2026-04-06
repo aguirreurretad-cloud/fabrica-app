@@ -7,7 +7,7 @@ import { Button } from "@/components/ui";
 
 export function DeleteProductoButton({ id }: { id: string }) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [loading, setLoading] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
 

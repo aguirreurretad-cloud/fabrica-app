@@ -10,7 +10,7 @@ function pesos(n: number) {
 }
 
 export default async function RecetaDetallePage({ params }: { params: { id: string } }) {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
 
   const { data: receta } = await (supabase as any)
     .from("recetas")

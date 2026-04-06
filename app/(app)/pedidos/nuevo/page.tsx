@@ -10,7 +10,7 @@ interface Cliente { id: string; nombre: string; }
 
 export default function NuevoPedidoPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [clientes, setClientes] = useState<Cliente[]>([]);

@@ -30,7 +30,7 @@ const ESTADOS_SIGUIENTES: Record<string, string[]> = {
 export default function PresupuestoDetallePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [presup, setPresup] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
@@ -47,7 +47,7 @@ export default function PresupuestoDetallePage() {
 
   async function cambiarEstado(nuevoEstado: string) {
     setCambiandoEstado(true);
-    await supabase.from("presupuestos").update({ estado: nuevoEstado }).eq("id", id);
+    await (supabase as any).from("presupuestos").update({ estado: nuevoEstado }).eq("id", id);
     setPresup((p: any) => ({ ...p, estado: nuevoEstado }));
     setCambiandoEstado(false);
   }

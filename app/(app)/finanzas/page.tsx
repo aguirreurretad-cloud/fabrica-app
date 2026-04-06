@@ -9,7 +9,7 @@ function pesos(n: number) {
 }
 
 export default async function FinanzasPage() {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
 
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];

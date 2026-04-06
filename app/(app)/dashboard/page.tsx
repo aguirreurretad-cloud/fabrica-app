@@ -5,7 +5,7 @@ import { QuickAccessCard, UltimoPedidoRow } from "@/components/ui/interactive";
 export const dynamic = "force-dynamic";
 
 async function getDashboardData() {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 

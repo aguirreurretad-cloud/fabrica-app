@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { scrapearTracking } from "../route";
+import { scrapearTracking } from "@/lib/correo/scraper";
 
 const STALE_HOURS = 12;
 

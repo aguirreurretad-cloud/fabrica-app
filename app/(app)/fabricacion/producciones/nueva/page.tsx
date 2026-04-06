@@ -15,7 +15,7 @@ function pesos(n: number) {
 export default function NuevaProduccionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [recetas, setRecetas] = useState<Receta[]>([]);

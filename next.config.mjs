@@ -1,8 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["playwright-core", "@sparticuz/chromium"],
+  experimental: {
+    serverComponentsExternalPackages: ["playwright-core", "@sparticuz/chromium"],
+  },
   webpack: (config) => {
     config.resolve.alias.canvas = false;
+    config.resolve.alias["playwright-core"] = false;
     return config;
   },
   images: {

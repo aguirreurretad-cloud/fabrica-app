@@ -10,7 +10,7 @@ const TIPO_BADGE: Record<string, "info" | "success" | "gray"> = {
 };
 
 export default async function ClientesPage() {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
   const { data: clientes } = await supabase
     .from("clientes").select("*").order("nombre");
 

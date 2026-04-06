@@ -10,7 +10,7 @@ const TIPO_BADGE: Record<string, "info" | "success" | "gray"> = {
 };
 
 export default async function ClienteDetailPage({ params }: { params: { id: string } }) {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
 
   const { data: cliente } = await supabase
     .from("clientes")

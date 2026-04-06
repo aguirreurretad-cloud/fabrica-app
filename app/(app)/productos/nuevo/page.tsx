@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export default function NuevoProductoPage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [categorias, setCategorias] = useState<{ id: string; nombre: string }[]>([]);
 
   useEffect(() => {

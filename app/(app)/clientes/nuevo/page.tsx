@@ -8,7 +8,7 @@ import Link from "next/link";
 
 export default function NuevoClientePage() {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 

@@ -17,7 +17,7 @@ const ESTADO_LABEL: Record<string, string> = {
 };
 
 export default async function PresupuestosPage() {
-  const supabase = await createClient();
+  const supabase = await createClient() as any;
   const { data: presupuestos } = await supabase
     .from("presupuestos").select("*, clientes(nombre)").order("created_at", { ascending: false });
 

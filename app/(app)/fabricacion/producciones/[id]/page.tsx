@@ -27,7 +27,7 @@ const ETAPAS = [
 
 export default function ProduccionDetallePage() {
   const { id } = useParams<{ id: string }>();
-  const supabase = createClient();
+  const supabase = createClient() as any;
 
   const [prod, setProd] = useState<any>(null);
   const [loading, setLoading] = useState(true);

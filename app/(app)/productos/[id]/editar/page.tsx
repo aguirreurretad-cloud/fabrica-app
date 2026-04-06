@@ -10,7 +10,7 @@ import Image from "next/image";
 export default function EditarProductoPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [loading, setLoading] = useState(false);
