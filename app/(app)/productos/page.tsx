@@ -14,7 +14,7 @@ export default async function ProductosPage() {
   const supabase = await createClient() as any;
   const { data: productos } = await supabase
     .from("productos")
-    .select("*, categorias(nombre), producto_variantes(stock)")
+    .select("*, categorias(nombre), producto_variantes(stock), precio_mayorista, precio_mayorista_max, cantidad_mayorista_max")
     .eq("activo", true)
     .order("nombre");
 
@@ -101,9 +101,26 @@ export default async function ProductosPage() {
                         )}
                       </div>
                       <div style={{ padding: "12px 14px" }}>
-                        <div style={{ fontSize: "14px", fontWeight: 500, color: "var(--text)", marginBottom: "6px" }}>{p.nombre}</div>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--brand)" }}>{pesos(p.precio_venta)}</span>
+                        <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)", marginBottom: "8px" }}>{p.nombre}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "8px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "10px", color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Menor</span>
+                            <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--brand)" }}>{pesos(p.precio_venta)}</span>
+                          </div>
+                          {p.precio_mayorista && (
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: "10px", color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Mayor</span>
+                              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>{pesos(p.precio_mayorista)}</span>
+                            </div>
+                          )}
+                          {p.precio_mayorista_max && (
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: "10px", color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>May. máx{p.cantidad_mayorista_max ? ` ≥${p.cantidad_mayorista_max}` : ""}</span>
+                              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text-2)" }}>{pesos(p.precio_mayorista_max)}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "flex-end" }}>
                           <Badge variant={stockBajo ? "danger" : "success"}>{stockTotal} u.</Badge>
                         </div>
                       </div>
