@@ -40,14 +40,17 @@ export default async function FinanzasPage() {
         title="Finanzas"
         subtitle={`Mes de ${now.toLocaleDateString("es-AR", { month: "long", year: "numeric" })}`}
         action={
-          <Link href="/finanzas/nuevo" style={{
-            display: "inline-flex", alignItems: "center", gap: "6px",
-            padding: "9px 16px", background: "var(--brand)", color: "#fff",
-            border: "none", borderRadius: "var(--radius)", fontSize: "13px",
-            fontWeight: 500, textDecoration: "none",
-          }}>
-            + Registrar movimiento
-          </Link>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <Link href="/finanzas/costos-fijos" style={{ display: "inline-flex", alignItems: "center", padding: "9px 16px", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}>
+              Costos fijos
+            </Link>
+            <Link href="/finanzas/facturas" style={{ display: "inline-flex", alignItems: "center", padding: "9px 16px", background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: "var(--radius)", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}>
+              Facturas
+            </Link>
+            <Link href="/finanzas/nuevo" style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "9px 16px", background: "var(--brand)", color: "#fff", border: "none", borderRadius: "var(--radius)", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}>
+              + Movimiento
+            </Link>
+          </div>
         }
       />
 
