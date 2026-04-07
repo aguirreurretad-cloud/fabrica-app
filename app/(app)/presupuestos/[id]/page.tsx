@@ -35,6 +35,8 @@ export default function PresupuestoDetallePage() {
   const [loading, setLoading] = useState(true);
   const [cambiandoEstado, setCambiandoEstado] = useState(false);
   const [convirtiendo, setConvirtiendo] = useState(false);
+  const [borrando, setBorrando] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     supabase
@@ -84,6 +86,14 @@ export default function PresupuestoDetallePage() {
     router.push(`/pedidos/${pedido.id}`);
   }
 
+  async function eliminarPresupuesto() {
+    setBorrando(true);
+    await supabase.from("presupuesto_items").delete().eq("presupuesto_id", id);
+    await supabase.from("presupuestos").delete().eq("id", id);
+    router.push("/presupuestos");
+    router.refresh();
+  }
+
   if (loading) return <div className="page-container" style={{ color: "var(--text-2)", fontSize: "14px" }}>Cargando...</div>;
   if (!presup) return <div className="page-container" style={{ color: "var(--text-2)", fontSize: "14px" }}>No encontrado.</div>;
 
@@ -104,6 +114,22 @@ export default function PresupuestoDetallePage() {
               <Button variant="primary" size="sm" onClick={convertirAPedido} loading={convirtiendo}>
                 Convertir a pedido →
               </Button>
+            )}
+            {presup.estado !== "aprobado" && (
+              confirmDelete ? (
+                <div style={{ display: "flex", gap: "6px" }}>
+                  <Button variant="danger" size="sm" loading={borrando} onClick={eliminarPresupuesto}>
+                    Confirmar borrado
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(true)}>
+                  Eliminar
+                </Button>
+              )
             )}
             <Link href="/presupuestos" style={{ fontSize: "13px", color: "var(--text-2)", textDecoration: "none" }}>← Volver</Link>
           </div>
