@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Card, PageHeader, Badge } from "@/components/ui";
+import DeleteClienteButton from "./DeleteClienteButton";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,7 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
             <Link href="/clientes" style={{ fontSize: "13px", color: "var(--text-2)", textDecoration: "none" }}>
               ← Volver
             </Link>
+            <DeleteClienteButton id={cliente.id} />
             <Link href={`/clientes/${cliente.id}/editar`} style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "9px 16px", background: "var(--brand)", color: "#fff", border: "none", borderRadius: "var(--radius)", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}>
               Editar
             </Link>
