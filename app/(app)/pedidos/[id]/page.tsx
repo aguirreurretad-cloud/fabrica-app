@@ -30,6 +30,8 @@ export default function PedidoDetallePage() {
   const [loading, setLoading] = useState(true);
   const [cambiando, setCambiando] = useState(false);
   const [togglingFacturado, setTogglingFacturado] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [borrando, setBorrando] = useState(false);
   const [telBombillas, setTelBombillas] = useState("");
   const [telMates, setTelMates] = useState("");
 
@@ -53,6 +55,14 @@ export default function PedidoDetallePage() {
     await supabase.from("pedidos").update({ facturado: nuevo }).eq("id", id);
     setPedido((p: any) => ({ ...p, facturado: nuevo }));
     setTogglingFacturado(false);
+  }
+
+  async function eliminarPedido() {
+    setBorrando(true);
+    await supabase.from("pedido_items").delete().eq("pedido_id", id);
+    await supabase.from("pedidos").delete().eq("id", id);
+    router.push("/pedidos");
+    router.refresh();
   }
 
   async function cambiarEstado(nuevoEstado: string) {
@@ -104,6 +114,14 @@ export default function PedidoDetallePage() {
             <Badge variant={ESTADO_BADGE[pedido.estado] ?? "gray"}>
               {ESTADOS.find((e) => e.key === pedido.estado)?.label ?? pedido.estado}
             </Badge>
+            {confirmDelete ? (
+              <>
+                <Button variant="danger" size="sm" loading={borrando} onClick={eliminarPedido}>Confirmar</Button>
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
+              </>
+            ) : (
+              <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(true)}>Eliminar</Button>
+            )}
             <Link href="/pedidos" style={{ fontSize: "13px", color: "var(--text-2)", textDecoration: "none" }}>← Volver</Link>
           </div>
         }
