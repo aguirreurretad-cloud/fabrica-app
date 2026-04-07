@@ -13,7 +13,16 @@ export default function DeleteClienteButton({ id }: { id: string }) {
 
   async function handleEliminar() {
     setBorrando(true);
-    await supabase.from("clientes").delete().eq("id", id);
+    // Desligar pedidos y presupuestos que referencian este cliente
+    await supabase.from("pedidos").update({ cliente_id: null }).eq("cliente_id", id);
+    await supabase.from("presupuestos").update({ cliente_id: null }).eq("cliente_id", id);
+    const { error } = await supabase.from("clientes").delete().eq("id", id);
+    if (error) {
+      alert("No se pudo eliminar el cliente.");
+      setBorrando(false);
+      setConfirm(false);
+      return;
+    }
     router.push("/clientes");
     router.refresh();
   }

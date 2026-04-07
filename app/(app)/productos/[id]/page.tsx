@@ -16,13 +16,14 @@ export default async function ProductoDetallePage({ params }: { params: { id: st
 
   const { data: producto } = await supabase
     .from("productos")
-    .select("*, categorias(nombre), producto_variantes(*)")
+    .select("*, categorias(nombre), producto_variantes(*), producto_opciones(*)")
     .eq("id", params.id)
     .single();
 
   if (!producto) notFound();
 
   const variantes = (producto.producto_variantes as any[]) ?? [];
+  const opciones = (producto.producto_opciones as any[]) ?? [];
   const stockTotal = variantes.reduce((s, v) => s + v.stock, 0);
   const stockBajo = stockTotal <= producto.stock_minimo;
 
@@ -93,6 +94,21 @@ export default async function ProductoDetallePage({ params }: { params: { id: st
             )}
           </Card>
         </div>
+
+        {/* Opciones */}
+        {opciones.length > 0 && (
+          <Card padding="0">
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>
+              Opciones / Extras
+            </div>
+            {opciones.map((o: any, i: number) => (
+              <div key={o.id} style={{ padding: "11px 20px", borderBottom: i < opciones.length - 1 ? "1px solid var(--border)" : "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontSize: "13px", color: "var(--text)" }}>{o.nombre}</div>
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "#16a34a" }}>+{pesos(o.precio_extra)}</div>
+              </div>
+            ))}
+          </Card>
+        )}
 
         {/* Variantes */}
         {variantes.length > 0 && (

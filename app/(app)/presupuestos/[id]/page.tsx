@@ -88,6 +88,8 @@ export default function PresupuestoDetallePage() {
 
   async function eliminarPresupuesto() {
     setBorrando(true);
+    // Desligar pedidos que referencian este presupuesto
+    await supabase.from("pedidos").update({ presupuesto_id: null }).eq("presupuesto_id", id);
     await supabase.from("presupuesto_items").delete().eq("presupuesto_id", id);
     await supabase.from("presupuestos").delete().eq("id", id);
     router.push("/presupuestos");

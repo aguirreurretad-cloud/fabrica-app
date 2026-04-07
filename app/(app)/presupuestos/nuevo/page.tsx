@@ -7,19 +7,23 @@ import { Card, Input, Select, Textarea, FormRow, Button, PageHeader, Divider } f
 import Link from "next/link";
 
 interface Cliente { id: string; nombre: string; cuit?: string; email?: string; direccion?: string; ciudad?: string; provincia?: string; }
+interface Opcion { id: string; nombre: string; precio_extra: number; }
 interface Producto {
   id: string; nombre: string;
   precio_venta: number;
   precio_mayorista?: number;
   precio_mayorista_max?: number;
   cantidad_mayorista_max?: number;
+  opciones?: Opcion[];
 }
 interface Item {
   producto_id: string;
   descripcion: string;
   cantidad: number;
+  precio_base: number;
   precio_unitario: number;
   tipo_precio: "menor" | "mayor" | "mayor_max";
+  opciones_ids: string[];
 }
 
 function pesos(n: number) {
@@ -40,25 +44,25 @@ export default function NuevoPresupuestoPage() {
   const [validez, setValidez] = useState(15);
   const [notas, setNotas] = useState("");
   const [items, setItems] = useState<Item[]>([
-    { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0, tipo_precio: "menor" },
+    { producto_id: "", descripcion: "", cantidad: 1, precio_base: 0, precio_unitario: 0, tipo_precio: "menor", opciones_ids: [] },
   ]);
 
   useEffect(() => {
     supabase.from("clientes").select("id, nombre, cuit, email, direccion, ciudad, provincia").order("nombre")
       .then(({ data }) => setClientes(data ?? []));
-    supabase.from("productos").select("id, nombre, precio_venta, precio_mayorista, precio_mayorista_max, cantidad_mayorista_max").eq("activo", true).order("nombre")
-      .then(({ data }) => setProductos(data ?? []));
+    supabase.from("productos").select("id, nombre, precio_venta, precio_mayorista, precio_mayorista_max, cantidad_mayorista_max, producto_opciones(id, nombre, precio_extra)").eq("activo", true).order("nombre")
+      .then(({ data }) => setProductos((data ?? []).map((p: any) => ({ ...p, opciones: p.producto_opciones ?? [] }))));
   }, []);
 
   function addItem() {
-    setItems((prev) => [...prev, { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0, tipo_precio: "menor" }]);
+    setItems((prev) => [...prev, { producto_id: "", descripcion: "", cantidad: 1, precio_base: 0, precio_unitario: 0, tipo_precio: "menor", opciones_ids: [] }]);
   }
 
   function removeItem(i: number) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function precioSegunTipo(prod: Producto, tipo: Item["tipo_precio"], cantidad: number): number {
+  function precioSegunTipo(prod: Producto, tipo: Item["tipo_precio"]): number {
     if (tipo === "mayor_max" && prod.precio_mayorista_max) return prod.precio_mayorista_max;
     if (tipo === "mayor" && prod.precio_mayorista) return prod.precio_mayorista;
     return prod.precio_venta;
@@ -70,15 +74,32 @@ export default function NuevoPresupuestoPage() {
     return "menor";
   }
 
+  function opcionesExtra(prod: Producto | undefined, opciones_ids: string[]): number {
+    if (!prod?.opciones) return 0;
+    return prod.opciones.filter((o) => opciones_ids.includes(o.id)).reduce((s, o) => s + o.precio_extra, 0);
+  }
+
+  function toggleOpcion(i: number, opcionId: string) {
+    setItems((prev) => prev.map((item, idx) => {
+      if (idx !== i) return item;
+      const prod = productos.find((p) => p.id === item.producto_id);
+      const nuevosIds = item.opciones_ids.includes(opcionId)
+        ? item.opciones_ids.filter((id) => id !== opcionId)
+        : [...item.opciones_ids, opcionId];
+      return { ...item, opciones_ids: nuevosIds, precio_unitario: item.precio_base + opcionesExtra(prod, nuevosIds) };
+    }));
+  }
+
   function setItem(i: number, field: keyof Item | "producto_id", value: string | number) {
     setItems((prev) => prev.map((item, idx) => {
       if (idx !== i) return item;
 
       if (field === "producto_id" && typeof value === "string") {
         const prod = productos.find((p) => p.id === value);
-        if (!prod) return { ...item, producto_id: value, descripcion: "", precio_unitario: 0, tipo_precio: "menor" as const };
+        if (!prod) return { ...item, producto_id: value, descripcion: "", precio_base: 0, precio_unitario: 0, tipo_precio: "menor" as const, opciones_ids: [] };
         const tipo = autoTipo(prod, item.cantidad);
-        return { ...item, producto_id: value, descripcion: prod.nombre, tipo_precio: tipo, precio_unitario: precioSegunTipo(prod, tipo, item.cantidad) };
+        const base = precioSegunTipo(prod, tipo);
+        return { ...item, producto_id: value, descripcion: prod.nombre, tipo_precio: tipo, precio_base: base, precio_unitario: base, opciones_ids: [] };
       }
 
       if (field === "cantidad" && typeof value === "number") {
@@ -86,8 +107,10 @@ export default function NuevoPresupuestoPage() {
         const newItem = { ...item, cantidad: value };
         if (prod) {
           const tipo = autoTipo(prod, value);
+          const base = precioSegunTipo(prod, tipo);
           newItem.tipo_precio = tipo;
-          newItem.precio_unitario = precioSegunTipo(prod, tipo, value);
+          newItem.precio_base = base;
+          newItem.precio_unitario = base + opcionesExtra(prod, item.opciones_ids);
         }
         return newItem;
       }
@@ -95,7 +118,8 @@ export default function NuevoPresupuestoPage() {
       if (field === "tipo_precio" && typeof value === "string") {
         const prod = productos.find((p) => p.id === item.producto_id);
         const tipo = value as Item["tipo_precio"];
-        return { ...item, tipo_precio: tipo, precio_unitario: prod ? precioSegunTipo(prod, tipo, item.cantidad) : item.precio_unitario };
+        const base = prod ? precioSegunTipo(prod, tipo) : item.precio_base;
+        return { ...item, tipo_precio: tipo, precio_base: base, precio_unitario: base + opcionesExtra(prod, item.opciones_ids) };
       }
 
       return { ...item, [field]: value };
@@ -196,7 +220,8 @@ export default function NuevoPresupuestoPage() {
           {items.map((item, i) => {
             const prod = productos.find((p) => p.id === item.producto_id);
             return (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 80px 130px 1fr 80px 28px", gap: "10px", alignItems: "start", marginBottom: "10px" }}>
+              <div key={i} style={{ marginBottom: "14px", borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none", paddingBottom: i < items.length - 1 ? "14px" : "0" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "2fr 80px 130px 1fr 80px 28px", gap: "10px", alignItems: "start" }}>
                 {/* Descripción con selector de producto */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   <select
@@ -259,6 +284,19 @@ export default function NuevoPresupuestoPage() {
                   style={{ width: "28px", height: "28px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", cursor: items.length === 1 ? "not-allowed" : "pointer", color: "var(--text-3)", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", opacity: items.length === 1 ? 0.3 : 1, marginTop: "2px" }}
                   disabled={items.length === 1}
                 >×</button>
+              </div>
+              {/* Opciones del producto */}
+              {prod?.opciones && prod.opciones.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "8px", paddingLeft: "4px" }}>
+                  {prod.opciones.map((op) => (
+                    <label key={op.id} style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "var(--text-2)", cursor: "pointer", background: item.opciones_ids.includes(op.id) ? "var(--brand-subtle, #eff6ff)" : "var(--surface-2)", border: `1px solid ${item.opciones_ids.includes(op.id) ? "var(--brand)" : "var(--border)"}`, borderRadius: "6px", padding: "4px 10px" }}>
+                      <input type="checkbox" checked={item.opciones_ids.includes(op.id)} onChange={() => toggleOpcion(i, op.id)} style={{ margin: 0 }} />
+                      {op.nombre}
+                      <span style={{ color: "#16a34a", fontWeight: 600 }}>+{pesos(op.precio_extra)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
               </div>
             );
           })}

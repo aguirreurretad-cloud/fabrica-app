@@ -41,11 +41,12 @@ export default function EditarProductoPage() {
   }
 
   const [variantes, setVariantes] = useState<{ id?: string; talla: string; color: string; stock: string }[]>([]);
+  const [opciones, setOpciones] = useState<{ id?: string; nombre: string; precio_extra: string }[]>([]);
 
   useEffect(() => {
     (supabase as any)
       .from("productos")
-      .select("*, producto_variantes(*)")
+      .select("*, producto_variantes(*), producto_opciones(*)")
       .eq("id", id)
       .single()
       .then(({ data }: { data: any }) => {
@@ -71,6 +72,13 @@ export default function EditarProductoPage() {
               talla: v.talla ?? "",
               color: v.color ?? "",
               stock: String(v.stock ?? 0),
+            }))
+          );
+          setOpciones(
+            (data.producto_opciones ?? []).map((o: any) => ({
+              id: o.id,
+              nombre: o.nombre ?? "",
+              precio_extra: String(o.precio_extra ?? 0),
             }))
           );
         }
@@ -99,6 +107,18 @@ export default function EditarProductoPage() {
 
   function setVariante(i: number, field: string, value: string) {
     setVariantes((v) => v.map((va, idx) => idx === i ? { ...va, [field]: value } : va));
+  }
+
+  function addOpcion() {
+    setOpciones((o) => [...o, { nombre: "", precio_extra: "0" }]);
+  }
+
+  function removeOpcion(i: number) {
+    setOpciones((o) => o.filter((_, idx) => idx !== i));
+  }
+
+  function setOpcion(i: number, field: string, value: string) {
+    setOpciones((o) => o.map((op, idx) => idx === i ? { ...op, [field]: value } : op));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -144,6 +164,19 @@ export default function EditarProductoPage() {
           talla: v.talla || null,
           color: v.color || null,
           stock: parseInt(v.stock) || 0,
+        }))
+      );
+    }
+
+    // Borrar opciones existentes y reinsertar
+    await (supabase as any).from("producto_opciones").delete().eq("producto_id", id);
+    const opcionesValidas = opciones.filter((o) => o.nombre.trim());
+    if (opcionesValidas.length > 0) {
+      await (supabase as any).from("producto_opciones").insert(
+        opcionesValidas.map((o) => ({
+          producto_id: id,
+          nombre: o.nombre.trim(),
+          precio_extra: parseFloat(o.precio_extra) || 0,
         }))
       );
     }
@@ -279,6 +312,42 @@ export default function EditarProductoPage() {
                   <Input type="number" value={v.stock} placeholder="0"
                     onChange={(e) => setVariante(i, "stock", e.target.value)} />
                   <button type="button" onClick={() => removeVariante(i)}
+                    style={{ width: "28px", height: "28px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", cursor: "pointer", color: "var(--text-3)", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Opciones / Extras */}
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "14px" }}>
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)" }}>Opciones / Extras</div>
+              <div style={{ fontSize: "11px", color: "var(--text-3)", marginTop: "2px" }}>Ej: Cincelado +$500, Grabado +$300</div>
+            </div>
+            <Button type="button" variant="secondary" size="sm" onClick={addOpcion}>+ Agregar</Button>
+          </div>
+          {opciones.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "20px 0", fontSize: "13px", color: "var(--text-3)" }}>
+              Sin opciones. Las opciones son extras que el cliente puede elegir al pedir.
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 140px 32px", gap: "10px", paddingBottom: "6px", borderBottom: "1px solid var(--border)" }}>
+                {["Nombre de la opción", "Precio extra ($)", ""].map((h) => (
+                  <div key={h} style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</div>
+                ))}
+              </div>
+              {opciones.map((o, i) => (
+                <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 140px 32px", gap: "10px", alignItems: "center" }}>
+                  <Input value={o.nombre} placeholder="Ej: Cincelado, Grabado, Pintado…"
+                    onChange={(e) => setOpcion(i, "nombre", e.target.value)} />
+                  <Input type="number" value={o.precio_extra} placeholder="500"
+                    onChange={(e) => setOpcion(i, "precio_extra", e.target.value)} />
+                  <button type="button" onClick={() => removeOpcion(i)}
                     style={{ width: "28px", height: "28px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", cursor: "pointer", color: "var(--text-3)", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     ×
                   </button>
