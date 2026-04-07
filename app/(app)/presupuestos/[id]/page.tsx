@@ -117,21 +117,19 @@ export default function PresupuestoDetallePage() {
                 Convertir a pedido →
               </Button>
             )}
-            {presup.estado !== "aprobado" && (
-              confirmDelete ? (
-                <div style={{ display: "flex", gap: "6px" }}>
-                  <Button variant="danger" size="sm" loading={borrando} onClick={eliminarPresupuesto}>
-                    Confirmar borrado
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>
-                    Cancelar
-                  </Button>
-                </div>
-              ) : (
-                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(true)}>
-                  Eliminar
+            {confirmDelete ? (
+              <div style={{ display: "flex", gap: "6px" }}>
+                <Button variant="danger" size="sm" loading={borrando} onClick={eliminarPresupuesto}>
+                  Confirmar borrado
                 </Button>
-              )
+                <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(false)}>
+                  Cancelar
+                </Button>
+              </div>
+            ) : (
+              <Button variant="secondary" size="sm" onClick={() => setConfirmDelete(true)}>
+                Eliminar
+              </Button>
             )}
             <Link href="/presupuestos" style={{ fontSize: "13px", color: "var(--text-2)", textDecoration: "none" }}>← Volver</Link>
           </div>
