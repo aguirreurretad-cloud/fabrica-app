@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FabricApp — Gestión Textil",
-  description: "Sistema de gestión para tu fábrica textil",
+  title: "STB Sistema",
+  description: "Sistema de gestión STB",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "FabricApp",
+    title: "STB Sistema",
   },
 };
 

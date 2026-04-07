@@ -65,15 +65,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           borderBottom: "1px solid var(--border)",
           display: "flex", alignItems: "center", gap: "10px",
         }}>
-          <div style={{
-            width: "32px", height: "32px",
-            background: "var(--brand)", borderRadius: "8px",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "16px", flexShrink: 0,
-          }}>🧵</div>
+          <img
+            src="/logo-stb.png"
+            alt="STB"
+            style={{ width: "36px", height: "36px", objectFit: "contain", flexShrink: 0, borderRadius: "6px" }}
+          />
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)" }}>FabricApp</div>
-            <div style={{ fontSize: "11px", color: "var(--text-3)" }}>Gestión textil</div>
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text)", letterSpacing: "0.01em" }}>STB Sistema</div>
+            <div style={{ fontSize: "11px", color: "var(--text-3)" }}>Gestión de fábrica</div>
           </div>
         </div>
 

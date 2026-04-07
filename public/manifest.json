@@ -1,7 +1,7 @@
 {
-  "name": "FabricApp — Gestión Textil",
-  "short_name": "FabricApp",
-  "description": "Sistema de gestión para tu fábrica textil",
+  "name": "STB Sistema",
+  "short_name": "STB",
+  "description": "Sistema de gestión STB",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#f8f9fc",
@@ -9,12 +9,12 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/logo-stb.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/logo-stb.png",
       "sizes": "512x512",
       "type": "image/png"
     }
