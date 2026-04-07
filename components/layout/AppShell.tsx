@@ -14,6 +14,7 @@ const NAV = [
   { href: "/fabricacion",   icon: "⚙", label: "Fabricación" },
   { href: "/correo",        icon: "✉", label: "Correo Arg." },
   { href: "/finanzas",      icon: "◑", label: "Finanzas" },
+  { href: "/configuracion", icon: "⚙", label: "Configuración" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

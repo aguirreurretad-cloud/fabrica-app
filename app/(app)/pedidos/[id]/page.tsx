@@ -29,6 +29,13 @@ export default function PedidoDetallePage() {
   const [pedido, setPedido] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cambiando, setCambiando] = useState(false);
+  const [telBombillas, setTelBombillas] = useState("");
+  const [telMates, setTelMates] = useState("");
+
+  useEffect(() => {
+    setTelBombillas(localStorage.getItem("contacto_bombillas") ?? "");
+    setTelMates(localStorage.getItem("contacto_mates") ?? "");
+  }, []);
 
   useEffect(() => {
     (supabase as any)
@@ -52,6 +59,21 @@ export default function PedidoDetallePage() {
   const cliente = pedido.clientes;
   const items = pedido.pedido_items ?? [];
   const estadoActualIdx = ESTADOS.findIndex((e) => e.key === pedido.estado);
+
+  // Separar ítems por categoría
+  const itemsBombillas = items.filter((it: any) =>
+    it.descripcion?.toLowerCase().includes("bombill") || it.productos?.nombre?.toLowerCase().includes("bombill")
+  );
+  const itemsMates = items.filter((it: any) =>
+    it.descripcion?.toLowerCase().includes("mate") || it.productos?.nombre?.toLowerCase().includes("mate")
+  );
+
+  function buildWaMessage(categoria: string, itemsFiltrados: any[]): string {
+    const lineas = itemsFiltrados.map((it: any) => `• ${it.descripcion}: *${it.cantidad} u*`).join("\n");
+    return encodeURIComponent(
+      `Hola! Te paso el pedido #${pedido.numero} de *${cliente?.nombre ?? "cliente"}*:\n\n*${categoria}:*\n${lineas}\n\n_STB Sistema_`
+    );
+  }
   const siguientes = ESTADOS.slice(estadoActualIdx + 1, estadoActualIdx + 2); // solo el siguiente
 
   return (
@@ -129,6 +151,47 @@ export default function PedidoDetallePage() {
                 ))}
               </tbody>
             </table>
+          </Card>
+        )}
+
+        {/* Enviar por WhatsApp */}
+        {(itemsBombillas.length > 0 || itemsMates.length > 0) && (
+          <Card>
+            <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "14px" }}>Enviar pedido por WhatsApp</div>
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              {itemsBombillas.length > 0 && (
+                telBombillas ? (
+                  <a
+                    href={`https://wa.me/${telBombillas}?text=${buildWaMessage("Bombillas", itemsBombillas)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "9px 16px", background: "#25d366", color: "#fff", borderRadius: "var(--radius)", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}
+                  >
+                    <span>📩</span> Enviar Bombillas ({itemsBombillas.reduce((s: number, it: any) => s + it.cantidad, 0)} u)
+                  </a>
+                ) : (
+                  <div style={{ fontSize: "12px", color: "var(--text-3)" }}>
+                    Configurá el contacto de bombillas en <Link href="/configuracion" style={{ color: "var(--brand)" }}>Configuración</Link>
+                  </div>
+                )
+              )}
+              {itemsMates.length > 0 && (
+                telMates ? (
+                  <a
+                    href={`https://wa.me/${telMates}?text=${buildWaMessage("Mates", itemsMates)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "9px 16px", background: "#25d366", color: "#fff", borderRadius: "var(--radius)", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}
+                  >
+                    <span>📩</span> Enviar Mates ({itemsMates.reduce((s: number, it: any) => s + it.cantidad, 0)} u)
+                  </a>
+                ) : (
+                  <div style={{ fontSize: "12px", color: "var(--text-3)" }}>
+                    Configurá el contacto de mates en <Link href="/configuracion" style={{ color: "var(--brand)" }}>Configuración</Link>
+                  </div>
+                )
+              )}
+            </div>
           </Card>
         )}
 
