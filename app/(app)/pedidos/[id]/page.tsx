@@ -29,6 +29,7 @@ export default function PedidoDetallePage() {
   const [pedido, setPedido] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cambiando, setCambiando] = useState(false);
+  const [togglingFacturado, setTogglingFacturado] = useState(false);
   const [telBombillas, setTelBombillas] = useState("");
   const [telMates, setTelMates] = useState("");
 
@@ -46,6 +47,14 @@ export default function PedidoDetallePage() {
       .then(({ data }: { data: any }) => { setPedido(data); setLoading(false); });
   }, [id]);
 
+  async function toggleFacturado() {
+    setTogglingFacturado(true);
+    const nuevo = !pedido.facturado;
+    await supabase.from("pedidos").update({ facturado: nuevo }).eq("id", id);
+    setPedido((p: any) => ({ ...p, facturado: nuevo }));
+    setTogglingFacturado(false);
+  }
+
   async function cambiarEstado(nuevoEstado: string) {
     setCambiando(true);
     await (supabase as any).from("pedidos").update({ estado: nuevoEstado }).eq("id", id);
@@ -59,6 +68,13 @@ export default function PedidoDetallePage() {
   const cliente = pedido.clientes;
   const items = pedido.pedido_items ?? [];
   const estadoActualIdx = ESTADOS.findIndex((e) => e.key === pedido.estado);
+
+  const venta = pedido.total ?? 0;
+  const costoBase = pedido.costo_total ?? 0;
+  const costoFactura = pedido.facturado ? costoBase * 0.04 : 0;
+  const costoTotal = costoBase + costoFactura;
+  const ganancia = venta - costoTotal;
+  const margen = venta > 0 ? (ganancia / venta) * 100 : 0;
 
   // Separar ítems por categoría
   const itemsBombillas = items.filter((it: any) =>
@@ -113,7 +129,49 @@ export default function PedidoDetallePage() {
           {/* Resumen */}
           <Card>
             <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "12px" }}>Resumen</div>
-            <div style={{ fontSize: "28px", fontWeight: 700, color: "var(--brand)", letterSpacing: "-0.02em", marginBottom: "12px" }}>{pesos(pedido.total)}</div>
+
+            {/* Venta / Costo / Ganancia */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+              <div>
+                <div style={{ fontSize: "11px", color: "var(--text-3)", marginBottom: "2px" }}>Venta</div>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--brand)", letterSpacing: "-0.02em" }}>{pesos(venta)}</div>
+              </div>
+              {costoBase > 0 && (
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-3)", marginBottom: "2px" }}>Costo{pedido.facturado ? " (+4%)" : ""}</div>
+                  <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em" }}>{pesos(costoTotal)}</div>
+                </div>
+              )}
+            </div>
+
+            {costoBase > 0 && (
+              <div style={{ background: ganancia >= 0 ? "#f0fdf4" : "#fef2f2", border: `1px solid ${ganancia >= 0 ? "#bbf7d0" : "#fecaca"}`, borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <div style={{ fontSize: "11px", color: ganancia >= 0 ? "#166534" : "#991b1b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Ganancia</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: ganancia >= 0 ? "#16a34a" : "var(--danger)" }}>{pesos(ganancia)}</div>
+                </div>
+                <div style={{ fontSize: "22px", fontWeight: 800, color: ganancia >= 0 ? "#16a34a" : "var(--danger)", opacity: 0.8 }}>
+                  {margen.toFixed(1)}%
+                </div>
+              </div>
+            )}
+
+            {/* Toggle Facturado */}
+            <div
+              onClick={togglingFacturado ? undefined : toggleFacturado}
+              style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 12px", background: pedido.facturado ? "var(--brand-light)" : "var(--surface-2)", border: `1px solid ${pedido.facturado ? "var(--brand)" : "var(--border)"}`, borderRadius: "var(--radius)", cursor: "pointer", userSelect: "none", marginBottom: "12px" }}
+            >
+              <div style={{ width: "16px", height: "16px", borderRadius: "4px", border: `2px solid ${pedido.facturado ? "var(--brand)" : "var(--border)"}`, background: pedido.facturado ? "var(--brand)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#fff", fontSize: "10px" }}>
+                {pedido.facturado ? "✓" : ""}
+              </div>
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 500, color: "var(--text)" }}>Facturado</div>
+                {pedido.facturado && costoBase > 0 && (
+                  <div style={{ fontSize: "11px", color: "var(--brand)" }}>+{pesos(costoFactura)} sumado al costo</div>
+                )}
+              </div>
+            </div>
+
             {pedido.tracking_number && (
               <div style={{ fontSize: "13px", color: "var(--text-2)", marginBottom: "4px" }}>
                 <span style={{ color: "var(--text-3)" }}>Tracking: </span>
@@ -121,7 +179,7 @@ export default function PedidoDetallePage() {
               </div>
             )}
             {pedido.notas && (
-              <div style={{ marginTop: "8px", fontSize: "13px", color: "var(--text-2)", lineHeight: 1.5, borderTop: "1px solid var(--border)", paddingTop: "8px" }}>
+              <div style={{ fontSize: "13px", color: "var(--text-2)", lineHeight: 1.5, borderTop: "1px solid var(--border)", paddingTop: "8px", marginTop: "8px" }}>
                 {pedido.notas}
               </div>
             )}
