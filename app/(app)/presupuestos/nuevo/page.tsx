@@ -7,8 +7,20 @@ import { Card, Input, Select, Textarea, FormRow, Button, PageHeader, Divider } f
 import Link from "next/link";
 
 interface Cliente { id: string; nombre: string; cuit?: string; email?: string; direccion?: string; ciudad?: string; provincia?: string; }
-interface Producto { id: string; nombre: string; precio_venta: number; }
-interface Item { producto_id: string; descripcion: string; cantidad: number; precio_unitario: number; }
+interface Producto {
+  id: string; nombre: string;
+  precio_venta: number;
+  precio_mayorista?: number;
+  precio_mayorista_max?: number;
+  cantidad_mayorista_max?: number;
+}
+interface Item {
+  producto_id: string;
+  descripcion: string;
+  cantidad: number;
+  precio_unitario: number;
+  tipo_precio: "menor" | "mayor" | "mayor_max";
+}
 
 function pesos(n: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
@@ -28,31 +40,64 @@ export default function NuevoPresupuestoPage() {
   const [validez, setValidez] = useState(15);
   const [notas, setNotas] = useState("");
   const [items, setItems] = useState<Item[]>([
-    { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0 },
+    { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0, tipo_precio: "menor" },
   ]);
 
   useEffect(() => {
     supabase.from("clientes").select("id, nombre, cuit, email, direccion, ciudad, provincia").order("nombre")
       .then(({ data }) => setClientes(data ?? []));
-    supabase.from("productos").select("id, nombre, precio_venta").eq("activo", true).order("nombre")
+    supabase.from("productos").select("id, nombre, precio_venta, precio_mayorista, precio_mayorista_max, cantidad_mayorista_max").eq("activo", true).order("nombre")
       .then(({ data }) => setProductos(data ?? []));
   }, []);
 
   function addItem() {
-    setItems((prev) => [...prev, { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0 }]);
+    setItems((prev) => [...prev, { producto_id: "", descripcion: "", cantidad: 1, precio_unitario: 0, tipo_precio: "menor" }]);
   }
 
   function removeItem(i: number) {
     setItems((prev) => prev.filter((_, idx) => idx !== i));
   }
 
-  function setItem(i: number, field: keyof Item, value: string | number) {
+  function precioSegunTipo(prod: Producto, tipo: Item["tipo_precio"], cantidad: number): number {
+    if (tipo === "mayor_max" && prod.precio_mayorista_max) return prod.precio_mayorista_max;
+    if (tipo === "mayor" && prod.precio_mayorista) return prod.precio_mayorista;
+    return prod.precio_venta;
+  }
+
+  function autoTipo(prod: Producto, cantidad: number): Item["tipo_precio"] {
+    if (prod.cantidad_mayorista_max && cantidad >= prod.cantidad_mayorista_max && prod.precio_mayorista_max)
+      return "mayor_max";
+    return "menor";
+  }
+
+  function setItem(i: number, field: keyof Item | "producto_id", value: string | number) {
     setItems((prev) => prev.map((item, idx) => {
       if (idx !== i) return item;
+
       if (field === "producto_id" && typeof value === "string") {
         const prod = productos.find((p) => p.id === value);
-        return { ...item, producto_id: value, descripcion: prod?.nombre ?? "", precio_unitario: prod?.precio_venta ?? 0 };
+        if (!prod) return { ...item, producto_id: value, descripcion: "", precio_unitario: 0, tipo_precio: "menor" as const };
+        const tipo = autoTipo(prod, item.cantidad);
+        return { ...item, producto_id: value, descripcion: prod.nombre, tipo_precio: tipo, precio_unitario: precioSegunTipo(prod, tipo, item.cantidad) };
       }
+
+      if (field === "cantidad" && typeof value === "number") {
+        const prod = productos.find((p) => p.id === item.producto_id);
+        const newItem = { ...item, cantidad: value };
+        if (prod) {
+          const tipo = autoTipo(prod, value);
+          newItem.tipo_precio = tipo;
+          newItem.precio_unitario = precioSegunTipo(prod, tipo, value);
+        }
+        return newItem;
+      }
+
+      if (field === "tipo_precio" && typeof value === "string") {
+        const prod = productos.find((p) => p.id === item.producto_id);
+        const tipo = value as Item["tipo_precio"];
+        return { ...item, tipo_precio: tipo, precio_unitario: prod ? precioSegunTipo(prod, tipo, item.cantidad) : item.precio_unitario };
+      }
+
       return { ...item, [field]: value };
     }));
   }
@@ -142,56 +187,81 @@ export default function NuevoPresupuestoPage() {
           </div>
 
           {/* Header */}
-          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 80px 28px", gap: "10px", marginBottom: "8px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
-            {["Descripción", "Cant.", "Precio unit.", "Subtotal", ""].map((h) => (
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 80px 130px 1fr 80px 28px", gap: "10px", marginBottom: "8px", paddingBottom: "8px", borderBottom: "1px solid var(--border)" }}>
+            {["Descripción", "Cant.", "Tipo precio", "Precio unit.", "Subtotal", ""].map((h) => (
               <div key={h} style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</div>
             ))}
           </div>
 
-          {items.map((item, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 80px 28px", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
-              {/* Descripción con selector de producto */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <select
-                  value={item.producto_id}
-                  onChange={(e) => setItem(i, "producto_id", e.target.value)}
-                  style={{ padding: "4px 8px", fontSize: "11px", border: "1px solid var(--border)", borderRadius: "6px", background: "var(--surface)", color: "var(--text-2)", fontFamily: "var(--font-main)" }}
-                >
-                  <option value="">Seleccioná producto (opcional)</option>
-                  {productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                </select>
-                <input
-                  value={item.descripcion}
-                  onChange={(e) => setItem(i, "descripcion", e.target.value)}
-                  placeholder="Descripción del ítem"
-                  style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none" }}
+          {items.map((item, i) => {
+            const prod = productos.find((p) => p.id === item.producto_id);
+            return (
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 80px 130px 1fr 80px 28px", gap: "10px", alignItems: "start", marginBottom: "10px" }}>
+                {/* Descripción con selector de producto */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <select
+                    value={item.producto_id}
+                    onChange={(e) => setItem(i, "producto_id", e.target.value)}
+                    style={{ padding: "4px 8px", fontSize: "11px", border: "1px solid var(--border)", borderRadius: "6px", background: "var(--surface)", color: "var(--text-2)", fontFamily: "var(--font-main)" }}
+                  >
+                    <option value="">Seleccioná producto (opcional)</option>
+                    {productos.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  </select>
+                  <input
+                    value={item.descripcion}
+                    onChange={(e) => setItem(i, "descripcion", e.target.value)}
+                    placeholder="Descripción del ítem"
+                    style={{ padding: "8px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none" }}
+                    onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
+                    onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+                  />
+                </div>
+
+                {/* Cantidad */}
+                <input type="number" min="1" value={item.cantidad}
+                  onChange={(e) => setItem(i, "cantidad", Number(e.target.value))}
+                  style={{ padding: "9px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none", width: "100%" }}
                   onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
                   onBlur={(e) => e.target.style.borderColor = "var(--border)"}
                 />
+
+                {/* Tipo de precio */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <select
+                    value={item.tipo_precio}
+                    onChange={(e) => setItem(i, "tipo_precio", e.target.value)}
+                    style={{ padding: "9px 8px", fontSize: "12px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", cursor: "pointer" }}
+                  >
+                    <option value="menor">Minorista</option>
+                    {prod?.precio_mayorista && <option value="mayor">Mayorista</option>}
+                    {prod?.precio_mayorista_max && <option value="mayor_max">May. máx{prod.cantidad_mayorista_max ? ` (≥${prod.cantidad_mayorista_max}u)` : ""}</option>}
+                  </select>
+                  {prod && item.tipo_precio === "mayor_max" && prod.cantidad_mayorista_max && item.cantidad >= prod.cantidad_mayorista_max && (
+                    <div style={{ fontSize: "10px", color: "#16a34a", fontWeight: 500 }}>✓ Precio auto-aplicado</div>
+                  )}
+                  {prod && prod.cantidad_mayorista_max && item.cantidad < prod.cantidad_mayorista_max && item.tipo_precio !== "mayor_max" && prod.precio_mayorista_max && (
+                    <div style={{ fontSize: "10px", color: "var(--text-3)" }}>May. máx desde {prod.cantidad_mayorista_max}u</div>
+                  )}
+                </div>
+
+                {/* Precio unitario */}
+                <input type="number" min="0" value={item.precio_unitario}
+                  onChange={(e) => setItem(i, "precio_unitario", Number(e.target.value))}
+                  style={{ padding: "9px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none", width: "100%" }}
+                  onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
+                  onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+                />
+
+                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", textAlign: "right", paddingTop: "10px" }}>
+                  {pesos(item.cantidad * item.precio_unitario)}
+                </div>
+                <button type="button" onClick={() => removeItem(i)}
+                  style={{ width: "28px", height: "28px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", cursor: items.length === 1 ? "not-allowed" : "pointer", color: "var(--text-3)", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", opacity: items.length === 1 ? 0.3 : 1, marginTop: "2px" }}
+                  disabled={items.length === 1}
+                >×</button>
               </div>
-              <input type="number" min="1" value={item.cantidad}
-                onChange={(e) => setItem(i, "cantidad", Number(e.target.value))}
-                style={{ padding: "9px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none", width: "100%" }}
-                onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
-                onBlur={(e) => e.target.style.borderColor = "var(--border)"}
-              />
-              <input type="number" min="0" value={item.precio_unitario}
-                onChange={(e) => setItem(i, "precio_unitario", Number(e.target.value))}
-                style={{ padding: "9px 10px", fontSize: "13px", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", color: "var(--text)", fontFamily: "var(--font-main)", outline: "none", width: "100%" }}
-                onFocus={(e) => e.target.style.borderColor = "var(--brand)"}
-                onBlur={(e) => e.target.style.borderColor = "var(--border)"}
-              />
-              <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", textAlign: "right" }}>
-                {pesos(item.cantidad * item.precio_unitario)}
-              </div>
-              <button type="button" onClick={() => removeItem(i)}
-                style={{ width: "28px", height: "28px", border: "1px solid var(--border)", borderRadius: "6px", background: "transparent", cursor: items.length === 1 ? "not-allowed" : "pointer", color: "var(--text-3)", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center", opacity: items.length === 1 ? 0.3 : 1 }}
-                disabled={items.length === 1}
-                onMouseEnter={(e) => { if (items.length > 1) { (e.currentTarget.style.background = "#fef2f2"); (e.currentTarget.style.color = "var(--danger)"); } }}
-                onMouseLeave={(e) => { (e.currentTarget.style.background = "transparent"); (e.currentTarget.style.color = "var(--text-3)"); }}
-              >×</button>
-            </div>
-          ))}
+            );
+          })}
         </Card>
 
         {/* Totales + config */}
