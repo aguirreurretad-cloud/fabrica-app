@@ -24,7 +24,7 @@ export default function EditarProductoPage() {
   const [form, setForm] = useState({
     nombre: "", descripcion: "", categoria_id: "",
     precio_venta: "", precio_mayorista: "", precio_mayorista_max: "",
-    cantidad_mayorista_max: "", precio_costo: "", stock_minimo: "10",
+    cantidad_mayorista_max: "", precio_costo: "", precio_costo_bulto: "", stock_minimo: "10",
   });
 
   useEffect(() => {
@@ -59,6 +59,7 @@ export default function EditarProductoPage() {
             precio_mayorista_max: String(data.precio_mayorista_max ?? ""),
             cantidad_mayorista_max: String(data.cantidad_mayorista_max ?? ""),
             precio_costo: String(data.precio_costo ?? ""),
+            precio_costo_bulto: String(data.precio_costo_bulto ?? ""),
             stock_minimo: String(data.stock_minimo ?? 10),
           });
           if (data.cantidad_mayorista_max) setCantidadAutoDetectada(true);
@@ -127,6 +128,7 @@ export default function EditarProductoPage() {
       precio_mayorista_max: parseFloat(form.precio_mayorista_max) || null,
       cantidad_mayorista_max: parseInt(form.cantidad_mayorista_max) || null,
       precio_costo: parseFloat(form.precio_costo) || null,
+      precio_costo_bulto: parseFloat(form.precio_costo_bulto) || null,
       stock_minimo: parseInt(form.stock_minimo) || 10,
       foto_url,
     }).eq("id", id);
@@ -236,10 +238,15 @@ export default function EditarProductoPage() {
           </div>
 
           <FormRow>
-            <Input label="Precio de costo ($)" type="number" value={form.precio_costo}
+            <Input label="Precio de costo x unidad ($)" type="number" value={form.precio_costo}
               onChange={(e) => set("precio_costo", e.target.value)} placeholder="1800" />
+            <Input label="Precio de costo x bulto ($)" type="number" value={form.precio_costo_bulto}
+              onChange={(e) => set("precio_costo_bulto", e.target.value)} placeholder="1500" />
+          </FormRow>
+          <FormRow>
             <Input label="Stock mínimo (alerta)" type="number" value={form.stock_minimo}
               onChange={(e) => set("stock_minimo", e.target.value)} placeholder="10" />
+            <div />
           </FormRow>
         </Card>
 

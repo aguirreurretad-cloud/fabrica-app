@@ -69,7 +69,8 @@ export default async function ProductoDetallePage({ params }: { params: { id: st
                   value: (producto as any).precio_mayorista_max ? pesos((producto as any).precio_mayorista_max) : "—",
                   bold: true,
                 },
-                { label: "Precio de costo", value: producto.precio_costo ? pesos(producto.precio_costo) : "—", bold: false },
+                { label: "Costo x unidad", value: producto.precio_costo ? pesos(producto.precio_costo) : "—", bold: false },
+                { label: "Costo x bulto", value: (producto as any).precio_costo_bulto ? pesos((producto as any).precio_costo_bulto) : "—", bold: false },
                 { label: "Stock total", value: `${stockTotal} unidades`, bold: false },
                 { label: "Stock mínimo", value: `${producto.stock_minimo} unidades`, bold: false },
               ].map(({ label, value, bold }) => (
