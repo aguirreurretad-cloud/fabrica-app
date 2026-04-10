@@ -43,7 +43,7 @@ export default function PedidoDetallePage() {
   useEffect(() => {
     (supabase as any)
       .from("pedidos")
-      .select("*, clientes(nombre, email, telefono, ciudad, provincia), pedido_items(*, productos(nombre))")
+      .select("*, clientes(nombre, email, telefono, ciudad, provincia), pedido_items(*, productos(nombre, categorias(nombre)))")
       .eq("id", id)
       .single()
       .then(({ data }: { data: any }) => { setPedido(data); setLoading(false); });
@@ -83,16 +83,20 @@ export default function PedidoDetallePage() {
   const costoBase = pedido.costo_total ?? 0;
   const costoFactura = pedido.facturado ? costoBase * 0.04 : 0;
   const costoTotal = costoBase + costoFactura;
-  const ganancia = venta - costoTotal;
-  const margen = venta > 0 ? (ganancia / venta) * 100 : 0;
 
-  // Separar ítems por categoría
-  const itemsBombillas = items.filter((it: any) =>
-    it.descripcion?.toLowerCase().includes("bombill") || it.productos?.nombre?.toLowerCase().includes("bombill")
-  );
-  const itemsMates = items.filter((it: any) =>
-    it.descripcion?.toLowerCase().includes("mate") || it.productos?.nombre?.toLowerCase().includes("mate")
-  );
+  // Ganancia por categoría
+  function textoItem(it: any) {
+    return ((it.descripcion ?? "") + " " + (it.productos?.nombre ?? "") + " " + (it.productos?.categorias?.nombre ?? "")).toLowerCase();
+  }
+  const itemsBombillas = items.filter((it: any) => textoItem(it).includes("bombill"));
+  const itemsMates = items.filter((it: any) => {
+    const t = textoItem(it);
+    return t.includes("mate") || t.includes("canasta");
+  });
+  const cantBombillas = itemsBombillas.reduce((s: number, it: any) => s + it.cantidad, 0);
+  const cantMates = itemsMates.reduce((s: number, it: any) => s + it.cantidad, 0);
+  const ganancia = cantMates * 3000 + cantBombillas * 500;
+  const margen = venta > 0 ? (ganancia / venta) * 100 : 0;
 
   function buildWaMessage(categoria: string, itemsFiltrados: any[]): string {
     const lineas = itemsFiltrados.map((it: any) => `• ${it.descripcion}: *${it.cantidad} u*`).join("\n");
@@ -162,14 +166,18 @@ export default function PedidoDetallePage() {
               )}
             </div>
 
-            {costoBase > 0 && (
-              <div style={{ background: ganancia >= 0 ? "#f0fdf4" : "#fef2f2", border: `1px solid ${ganancia >= 0 ? "#bbf7d0" : "#fecaca"}`, borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: "12px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ fontSize: "11px", color: ganancia >= 0 ? "#166534" : "#991b1b", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Ganancia</div>
-                  <div style={{ fontSize: "18px", fontWeight: 700, color: ganancia >= 0 ? "#16a34a" : "var(--danger)" }}>{pesos(ganancia)}</div>
+            {(cantMates > 0 || cantBombillas > 0) && (
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "var(--radius)", padding: "10px 12px", marginBottom: "12px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <div>
+                    <div style={{ fontSize: "11px", color: "#166534", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Ganancia estimada</div>
+                    <div style={{ fontSize: "18px", fontWeight: 700, color: "#16a34a" }}>{pesos(ganancia)}</div>
+                  </div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: "#16a34a", opacity: 0.8 }}>{margen.toFixed(1)}%</div>
                 </div>
-                <div style={{ fontSize: "22px", fontWeight: 800, color: ganancia >= 0 ? "#16a34a" : "var(--danger)", opacity: 0.8 }}>
-                  {margen.toFixed(1)}%
+                <div style={{ display: "flex", gap: "12px", fontSize: "11px", color: "#166534" }}>
+                  {cantMates > 0 && <span>{cantMates} mate/canasta × $3.000 = {pesos(cantMates * 3000)}</span>}
+                  {cantBombillas > 0 && <span>{cantBombillas} bombilla × $500 = {pesos(cantBombillas * 500)}</span>}
                 </div>
               </div>
             )}

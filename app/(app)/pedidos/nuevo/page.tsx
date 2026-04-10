@@ -26,6 +26,7 @@ export default function NuevoPedidoPage() {
     cliente_id: "", total: "", costo_total: "", fecha_entrega: "", notas: "",
   });
   const [facturado, setFacturado] = useState(false);
+  const [gananciaCat, setGananciaCat] = useState<{ cantMates: number; cantBombillas: number } | null>(null);
 
   useEffect(() => {
     supabase.from("clientes").select("id, nombre").order("nombre")
@@ -40,28 +41,33 @@ export default function NuevoPedidoPage() {
   // Al seleccionar presupuesto, auto-rellenar cliente y total
   async function handlePresupuesto(pid: string) {
     setPresupuestoId(pid);
+    setGananciaCat(null);
     if (!pid) return;
 
     const presup = presupuestos.find((p) => p.id === pid);
     if (!presup) return;
 
-    // Cargar items con precio_costo de cada producto
+    // Cargar items con precio_costo y categoría
     const { data: items } = await supabase
       .from("presupuesto_items")
-      .select("cantidad, precio_unitario, productos(precio_costo)")
+      .select("cantidad, descripcion, productos(nombre, precio_costo, categorias(nombre))")
       .eq("presupuesto_id", pid);
 
     const costoCalculado = (items ?? []).reduce((s: number, it: any) => {
-      const costo = it.productos?.precio_costo ?? 0;
-      return s + it.cantidad * costo;
+      return s + it.cantidad * (it.productos?.precio_costo ?? 0);
     }, 0);
 
-    // Buscar cliente_id desde el presupuesto
+    // Calcular ganancia por categoría
+    let cantMates = 0, cantBombillas = 0;
+    (items ?? []).forEach((it: any) => {
+      const texto = ((it.descripcion ?? "") + " " + (it.productos?.nombre ?? "") + " " + (it.productos?.categorias?.nombre ?? "")).toLowerCase();
+      if (texto.includes("bombill")) cantBombillas += it.cantidad;
+      else if (texto.includes("mate") || texto.includes("canasta")) cantMates += it.cantidad;
+    });
+    if (cantMates > 0 || cantBombillas > 0) setGananciaCat({ cantMates, cantBombillas });
+
     const { data: presupData } = await supabase
-      .from("presupuestos")
-      .select("cliente_id")
-      .eq("id", pid)
-      .single();
+      .from("presupuestos").select("cliente_id").eq("id", pid).single();
 
     setForm((f) => ({
       ...f,
@@ -75,12 +81,12 @@ export default function NuevoPedidoPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
-  // Calcular ganancia en tiempo real
   const venta = parseFloat(form.total) || 0;
   const costoBase = parseFloat(form.costo_total) || 0;
   const costoFactura = facturado ? costoBase * 0.04 : 0;
   const costoTotal = costoBase + costoFactura;
-  const ganancia = venta - costoTotal;
+  const gananciaCAT = gananciaCat ? gananciaCat.cantMates * 3000 + gananciaCat.cantBombillas * 500 : null;
+  const ganancia = gananciaCAT ?? (venta - costoTotal);
   const margen = venta > 0 ? (ganancia / venta) * 100 : 0;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -207,19 +213,29 @@ export default function NuevoPedidoPage() {
             <div style={{ background: "var(--surface-2)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "12px 14px" }}>
               <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "10px" }}>Proyección</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
-                {[
-                  { label: "Venta", value: pesos(venta), color: "var(--text)" },
-                  { label: `Costo${facturado ? " (+4%)" : ""}`, value: pesos(costoTotal), color: "var(--text)" },
-                  { label: "Ganancia", value: pesos(ganancia), color: ganancia >= 0 ? "#16a34a" : "var(--danger)" },
-                ].map((r) => (
-                  <div key={r.label}>
-                    <div style={{ fontSize: "11px", color: "var(--text-3)", marginBottom: "3px" }}>{r.label}</div>
-                    <div style={{ fontSize: "15px", fontWeight: 700, color: r.color }}>{r.value}</div>
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-3)", marginBottom: "3px" }}>Venta</div>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text)" }}>{pesos(venta)}</div>
+                </div>
+                {!gananciaCAT && (
+                  <div>
+                    <div style={{ fontSize: "11px", color: "var(--text-3)", marginBottom: "3px" }}>Costo{facturado ? " (+4%)" : ""}</div>
+                    <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--text)" }}>{pesos(costoTotal)}</div>
                   </div>
-                ))}
+                )}
+                <div>
+                  <div style={{ fontSize: "11px", color: "var(--text-3)", marginBottom: "3px" }}>Ganancia estimada</div>
+                  <div style={{ fontSize: "15px", fontWeight: 700, color: ganancia >= 0 ? "#16a34a" : "var(--danger)" }}>{pesos(ganancia)}</div>
+                </div>
               </div>
+              {gananciaCat && (
+                <div style={{ marginTop: "8px", fontSize: "11px", color: "#166534", display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                  {gananciaCat.cantMates > 0 && <span>{gananciaCat.cantMates} mate/canasta × $3.000 = {pesos(gananciaCat.cantMates * 3000)}</span>}
+                  {gananciaCat.cantBombillas > 0 && <span>{gananciaCat.cantBombillas} bombilla × $500 = {pesos(gananciaCat.cantBombillas * 500)}</span>}
+                </div>
+              )}
               {venta > 0 && (
-                <div style={{ marginTop: "8px", fontSize: "12px", color: ganancia >= 0 ? "#16a34a" : "var(--danger)", fontWeight: 500 }}>
+                <div style={{ marginTop: "6px", fontSize: "12px", color: ganancia >= 0 ? "#16a34a" : "var(--danger)", fontWeight: 500 }}>
                   Margen: {margen.toFixed(1)}%
                 </div>
               )}
